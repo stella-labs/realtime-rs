@@ -14,6 +14,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
+use tracing::error;
 use uuid::Uuid;
 
 use crate::message::{
@@ -391,7 +392,7 @@ impl RealtimeChannel {
                         presence.sync(state.into());
                     }
                     _ => {
-                        println!("Unmatched payload ;_;")
+                        error!("Unmatched payload ;_;")
                     }
                 }
 

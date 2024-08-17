@@ -14,6 +14,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::{HeaderMap, HeaderValue, Request, Uri};
 
 use futures_util::{pin_mut, StreamExt};
+use tracing::{debug, error, warn};
 
 use crate::message::RealtimeMessage;
 use crate::realtime_channel::{ChannelManager, ChannelManagerMessage, ChannelState};
@@ -387,7 +388,7 @@ impl RealtimeClient {
 
         let mut state = self.state.lock().await;
         *state = ClientState::Closed;
-        println!("Disconnected!");
+        debug!("Disconnected!");
 
         let access_token = self.access_token.lock().await;
 
@@ -405,7 +406,7 @@ impl RealtimeClient {
     }
 
     async fn connect_ws(&mut self) -> Result<(), ConnectError> {
-        println!("Connecting...");
+        debug!("Connecting...");
 
         self.clear_tasks();
 
@@ -418,13 +419,13 @@ impl RealtimeClient {
             let Ok((ws_stream, _res)) = connect_async(request.clone()).await else {
                 reconnect_attempts += 1;
                 if reconnect_attempts >= self.reconnect_max_attempts {
-                    println!(
+                    error!(
                         "Connection failed, max retries exceeded ({}/{})",
                         reconnect_attempts, self.reconnect_max_attempts
                     );
                     return Err(ConnectError::MaxRetries);
                 }
-                println!(
+                warn!(
                     "Connection failed. Retrying (attempt #{})",
                     reconnect_attempts
                 );
@@ -432,7 +433,7 @@ impl RealtimeClient {
                 continue;
             };
 
-            println!("WebSocket handshake has been successfully completed");
+            debug!("WebSocket handshake has been successfully completed");
 
             let (write, mut read) = ws_stream.split();
 
@@ -446,7 +447,7 @@ impl RealtimeClient {
                         }
                         // TODO throttling. READING: drop or queue throttled messages? check what
                         // official clients do.
-                        println!("[SEND] {:?}", x);
+                        debug!("[SEND] {:?}", x);
 
                         Ok(x.into())
                     })
@@ -464,7 +465,7 @@ impl RealtimeClient {
                 loop {
                     while let Some(msg) = read.next().await {
                         if let Err(_err) = msg {
-                            println!("Disconnected!");
+                            debug!("Disconnected!");
                             let mut state = recv_state.lock().await;
                             *state = ClientState::Reconnect;
                             continue;
@@ -476,7 +477,7 @@ impl RealtimeClient {
                             continue;
                         };
 
-                        println!("[RECV] {:?}", msg);
+                        debug!("[RECV] {:?}", msg);
 
                         if let Some(decode) = decode.clone() {
                             msg = decode(msg);
@@ -505,7 +506,7 @@ impl RealtimeClient {
 
                     let mut state = recv_state.lock().await;
                     if *state == ClientState::Reconnect {
-                        println!("Reconnecting...");
+                        debug!("Reconnecting...");
                         *state = ClientState::Reconnecting;
                         drop(state);
                         manager.connect().await;

@@ -1,6 +1,11 @@
+#![warn(
+    clippy::print_stdout,
+    clippy::use_debug,
+    clippy::dbg_macro,
+    clippy::print_stderr
+)]
 use tokio::sync::oneshot;
 
-pub(crate) const DEBUG: bool = false;
 pub(crate) type Responder<T> = oneshot::Sender<T>;
 
 pub mod message;
